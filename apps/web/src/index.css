@@ -1,0 +1,171 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gray-50 text-gray-900 antialiased;
+  }
+}
+
+@layer components {
+  /* Кнопки */
+  .btn-primary {
+    @apply bg-primary-600 text-white px-4 py-2 rounded-lg font-medium
+           hover:bg-primary-700 transition-colors duration-200
+           focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply bg-white text-gray-700 border border-gray-300 px-4 py-2 rounded-lg font-medium
+           hover:bg-gray-50 transition-colors duration-200
+           focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
+  }
+
+  .btn-danger {
+    @apply bg-red-600 text-white px-4 py-2 rounded-lg font-medium
+           hover:bg-red-700 transition-colors duration-200;
+  }
+
+  /* Карточки */
+  .card {
+    @apply bg-white rounded-xl shadow-soft border border-gray-100 p-6;
+  }
+
+  .card-hover {
+    @apply card hover:shadow-lg transition-shadow duration-300;
+  }
+
+  /* Формы */
+  .input {
+    @apply w-full px-4 py-2 border border-gray-300 rounded-lg
+           focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent
+           transition-all duration-200;
+  }
+
+  .label {
+    @apply block text-sm font-medium text-gray-700 mb-1;
+  }
+
+  /* Статусы */
+  .status-badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .status-planned { @apply status-badge bg-gray-100 text-gray-800; }
+  .status-in_progress { @apply status-badge bg-blue-100 text-blue-800; }
+  .status-completed { @apply status-badge bg-green-100 text-green-800; }
+  .status-on_hold { @apply status-badge bg-yellow-100 text-yellow-800; }
+  .status-overdue { @apply status-badge bg-red-100 text-red-800; }
+
+  /* Приоритеты */
+  .priority-badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .priority-low { @apply priority-badge bg-gray-100 text-gray-700; }
+  .priority-medium { @apply priority-badge bg-yellow-100 text-yellow-800; }
+  .priority-high { @apply priority-badge bg-orange-100 text-orange-800; }
+  .priority-critical { @apply priority-badge bg-red-100 text-red-800; }
+
+  /* Таблицы */
+  .table-container {
+    @apply overflow-hidden rounded-xl border border-gray-200 shadow-soft;
+  }
+
+  .table {
+    @apply min-w-full divide-y divide-gray-200;
+  }
+
+  .table-header {
+    @apply bg-gray-50;
+  }
+
+  .table-header-cell {
+    @apply px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider;
+  }
+
+  .table-row {
+    @apply bg-white hover:bg-gray-50 transition-colors duration-150;
+  }
+
+  .table-cell {
+    @apply px-6 py-4 whitespace-nowrap text-sm text-gray-900;
+  }
+
+  /* Навигация */
+  .nav-link {
+    @apply flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium
+           transition-all duration-200;
+  }
+
+  .nav-link-active {
+    @apply nav-link bg-primary-50 text-primary-700;
+  }
+
+  .nav-link-inactive {
+    @apply nav-link text-gray-700 hover:bg-gray-100 hover:text-gray-900;
+  }
+
+  /* Заголовки страниц */
+  .page-header {
+    @apply mb-6;
+  }
+
+  .page-title {
+    @apply text-2xl font-bold text-gray-900;
+  }
+
+  .page-subtitle {
+    @apply text-sm text-gray-500 mt-1;
+  }
+
+  /* Сетка статистики */
+  .stats-grid {
+    @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6;
+  }
+
+  .stat-card {
+    @apply card-hover;
+  }
+
+  .stat-value {
+    @apply text-3xl font-bold text-gray-900 mt-2;
+  }
+
+  .stat-label {
+    @apply text-sm text-gray-500;
+  }
+
+  .stat-icon {
+    @apply w-12 h-12 rounded-lg flex items-center justify-center;
+  }
+}
+
+/* Анимации */
+@layer utilities {
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.3s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}

@@ -1,0 +1,453 @@
+// ============================================================
+// ConstructionPM - Prisma Schema (FINAL FIXED)
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  FOREMAN
+  EMPLOYEE
+}
+
+enum ProjectStatus {
+  PLANNING
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+
+enum TaskStatus {
+  PLANNED
+  IN_PROGRESS
+  ON_HOLD
+  COMPLETED
+  OVERDUE
+}
+
+enum SiteStatus {
+  PLANNING
+  ACTIVE
+  COMPLETED
+  CLOSED
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  ON_VACATION
+  ON_SICK_LEAVE
+  INACTIVE
+}
+
+enum EquipmentStatus {
+  AVAILABLE
+  IN_USE
+  UNDER_MAINTENANCE
+  OUT_OF_SERVICE
+}
+
+enum EquipmentType {
+  VEHICLE
+  MACHINERY
+  TOOL
+  SAFETY
+  OTHER
+}
+
+enum WorkCategory {
+  CONSTRUCTION
+  ELECTRICAL
+  PLUMBING
+  HVAC
+  FINISHING
+  OTHER
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum NotificationType {
+  TASK_ASSIGNED
+  TASK_UPDATED
+  DEADLINE_APPROACHING
+  COMMENT
+  SYSTEM
+}
+
+// ============================================================
+// MODELS
+// ============================================================
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  name          String
+  phone         String?
+  role          UserRole  @default(EMPLOYEE)
+  avatarUrl     String?
+  isActive      Boolean   @default(true)
+  lastLoginAt   DateTime?
+  password      String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  managedProjects Project[]   @relation("ProjectManager")
+  assignedTasks   Task[]      @relation("TaskAssignee")
+  ledTeams        Team[]      @relation("TeamLeader")
+  employee        Employee?
+  comments        Comment[]
+  attachments     Attachment[]
+  notifications   Notification[]
+  statusLogs      TaskStatusLog[]
+
+  @@index([email])
+  @@index([role, isActive])
+}
+
+model Project {
+  id            String        @id @default(uuid())
+  name          String
+  description   String?
+  status        ProjectStatus @default(PLANNING)
+  startDate     DateTime
+  endDate       DateTime?
+  budget        BigInt?
+  currency      String?       @default("RUB")
+  priority      TaskPriority  @default(MEDIUM)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  // Foreign Keys
+  managerId String
+
+  // Relations
+  manager     User            @relation("ProjectManager", fields: [managerId], references: [id])
+  sites       ConstructionSite[]
+  tasks       Task[]
+  teams       Team[]
+  equipment   Equipment[]
+  comments    Comment[]       // <- Added
+  attachments Attachment[]    // <- Added
+
+  @@index([status])
+  @@index([managerId])
+  @@index([startDate, endDate])
+}
+
+model ConstructionSite {
+  id            String      @id @default(uuid())
+  name          String
+  address       String
+  city          String
+  region        String?
+  postalCode    String?
+  coordinates   Json?
+  status        SiteStatus  @default(ACTIVE)
+  startDate     DateTime?
+  endDate       DateTime?
+  description   String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  // Foreign Keys
+  projectId String
+
+  // Relations
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks   Task[]
+
+  @@index([projectId])
+  @@index([city, status])
+}
+
+model WorkType {
+  id            String        @id @default(uuid())
+  name          String
+  code          String        @unique
+  description   String?
+  unit          String
+  defaultRate   Decimal?
+  category      WorkCategory
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  // Relations
+  tasks Task[]
+
+  @@index([code])
+  @@index([category])
+}
+
+model Task {
+  id              String        @id @default(uuid())
+  title           String
+  description     String?
+  status          TaskStatus    @default(PLANNED)
+  priority        TaskPriority  @default(MEDIUM)
+  progress        Int           @default(0)
+
+  // Planning dates (UTC)
+  startDate       DateTime?
+  dueDate         DateTime?
+  completedAt     DateTime?
+
+  // Actual dates (UTC)
+  actualStart     DateTime?
+  actualEnd       DateTime?
+
+  // Hours tracking
+  estimatedHours  Decimal?
+  actualHours     Decimal?
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Foreign Keys
+  projectId          String
+  constructionSiteId String?
+  workTypeId         String?
+  assigneeId         String?
+  teamId             String?
+  parentId           String?
+
+  // Relations
+  project          Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  constructionSite ConstructionSite? @relation(fields: [constructionSiteId], references: [id], onDelete: Cascade)
+  workType         WorkType?        @relation(fields: [workTypeId], references: [id], onDelete: SetNull)
+  assignee         User?            @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  team             Team?            @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  parent           Task?            @relation("TaskSubtasks", fields: [parentId], references: [id], onDelete: Cascade)
+  subtasks         Task[]           @relation("TaskSubtasks")
+
+  // Journals & attachments
+  statusLogs    TaskStatusLog[]
+  comments      Comment[]
+  attachments   Attachment[]
+  equipment     TaskEquipment[]
+
+  // Location details
+  locationZone    String?
+  locationFloor   String?
+  locationRoom    String?
+
+  // Dependencies (self-referential many-to-many)
+  dependencies  Task[] @relation("TaskDependencies")
+  dependents    Task[] @relation("TaskDependencies")
+
+  @@index([projectId, status])
+  @@index([assigneeId, status])
+  @@index([teamId, status])
+  @@index([dueDate])
+  @@index([constructionSiteId])
+}
+
+model Team {
+  id            String    @id @default(uuid())
+  name          String
+  description   String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Foreign Keys
+  leaderId    String
+  projectId   String?
+
+  // Relations
+  leader      User      @relation("TeamLeader", fields: [leaderId], references: [id])
+  project     Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  members     Employee[]
+  tasks       Task[]
+
+  @@index([leaderId])
+  @@index([projectId])
+}
+
+model Employee {
+  id              String          @id @default(uuid())
+  tabNumber       String          @unique
+  position        String
+  department      String?
+  hireDate        DateTime
+  status          EmployeeStatus  @default(ACTIVE)
+  hourlyRate      Decimal?
+  skills          String[]
+  certifications  String[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  // Emergency contact (JSON)
+  emergencyContact Json?
+
+  // Foreign Keys
+  userId  String  @unique
+  teamId  String?
+
+  // Relations
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team      Team?     @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  // tasks   Task[]   // REMOVED: Tasks are assigned to User (assignee), not Employee directly
+  equipment Equipment[]
+
+  @@index([userId])
+  @@index([teamId, status])
+  @@index([department])
+}
+
+model Equipment {
+  id                  String            @id @default(uuid())
+  name                String
+  model               String?
+  serialNumber        String?           @unique
+  type                EquipmentType
+  status              EquipmentStatus   @default(AVAILABLE)
+
+  // Dates (UTC)
+  purchaseDate        DateTime?
+  warrantyEndDate     DateTime?
+  lastMaintenanceDate DateTime?
+  nextMaintenanceDate DateTime?
+
+  location            String?
+  specifications      Json?
+
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  // Foreign Keys
+  projectId    String?
+  assignedToId String?
+
+  // Relations
+  project     Project?   @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  assignedTo  Employee?  @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
+  assignments TaskEquipment[]
+
+  @@index([projectId])
+  @@index([assignedToId, status])
+  @@index([type, status])
+}
+
+model TaskEquipment {
+  id           String   @id @default(uuid())
+  assignedDate DateTime @default(now())
+  returnDate   DateTime?
+  notes        String?
+
+  // Foreign Keys
+  taskId      String
+  equipmentId String
+
+  // Relations
+  task      Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  equipment Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, equipmentId])
+  @@index([equipmentId])
+}
+
+model TaskStatusLog {
+  id          String    @id @default(uuid())
+  fromStatus  TaskStatus?
+  toStatus    TaskStatus
+  reason      String?
+  createdAt   DateTime  @default(now())
+
+  // Foreign Keys
+  taskId    String
+  changedBy String
+
+  // Relations
+  task      Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  changedByUser User @relation(fields: [changedBy], references: [id])
+
+  @@index([taskId, createdAt])
+  @@index([changedBy])
+}
+
+model Comment {
+  id          String   @id @default(uuid())
+  content     String
+  isEdited    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Foreign Keys
+  authorId  String
+  taskId    String?
+  projectId String?
+  parentId  String?
+
+  // Relations
+  author    User     @relation(fields: [authorId], references: [id])
+  task      Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  parent    Comment? @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   Comment[] @relation("CommentReplies")
+
+  @@index([taskId, createdAt])
+  @@index([projectId, createdAt])
+}
+
+model Attachment {
+  id           String   @id @default(uuid())
+  filename     String
+  originalName String
+  mimeType     String
+  size         Int
+  url          String
+  createdAt    DateTime @default(now())
+
+  // Foreign Keys
+  uploadedById String
+  taskId       String?
+  projectId    String?
+
+  // Relations
+  uploadedBy User     @relation(fields: [uploadedById], references: [id])
+  task       Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  project    Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([uploadedById])
+  @@index([taskId])
+  @@index([projectId])
+}
+
+model Notification {
+  id            String           @id @default(uuid())
+  type          NotificationType
+  title         String
+  message       String
+  isRead        Boolean          @default(false)
+  readAt        DateTime?
+  createdAt     DateTime         @default(now())
+
+  // Related entity (polymorphic via JSON)
+  relatedEntity Json?
+
+  // Foreign Keys
+  userId String
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([createdAt])
+}
